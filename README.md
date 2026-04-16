@@ -1,61 +1,87 @@
 # project
 
-<a target="_blank" href="https://cookiecutter-data-science.drivendata.org/">
-    <img src="https://img.shields.io/badge/CCDS-Project%20template-328F97?logo=cookiecutter" />
-</a>
+コンペ用の最小構成プロジェクトテンプレートです。
 
-A short description of the project.
-
-## Project Organization
+## ディレクトリ構成
 
 ```
-├── LICENSE            <- Open-source license if one is chosen
-├── Makefile           <- Makefile with convenience commands like `make data` or `make train`
-├── README.md          <- The top-level README for developers using this project.
-├── data
-│   ├── external       <- Data from third party sources.
-│   ├── interim        <- Intermediate data that has been transformed.
-│   ├── processed      <- The final, canonical data sets for modeling.
-│   └── raw            <- The original, immutable data dump.
+├── Makefile                    <- よく使うコマンドのショートカット
+├── README.md
+├── data/
+│   ├── raw/                    <- 元データ（変更しない）
+│   │   ├── train.csv
+│   │   └── test.csv
+│   ├── interim/                <- 処理途中のデータ
+│   └── processed/              <- モデルに入力する最終データ・submission
 │
-├── docs               <- A default mkdocs project; see www.mkdocs.org for details
+├── models/                     <- 学習済みモデル (.pkl)
 │
-├── models             <- Trained and serialized models, model predictions, or model summaries
+├── notebooks/                  <- EDA・実験用ノートブック
+│                                  命名規則: 1.0-eda.ipynb, 2.0-feature.ipynb
 │
-├── notebooks          <- Jupyter notebooks. Naming convention is a number (for ordering),
-│                         the creator's initials, and a short `-` delimited description, e.g.
-│                         `1.0-jqp-initial-data-exploration`.
-│
-├── pyproject.toml     <- Project configuration file with package metadata for 
-│                         project and configuration for tools like black
-│
-├── references         <- Data dictionaries, manuals, and all other explanatory materials.
-│
-├── reports            <- Generated analysis as HTML, PDF, LaTeX, etc.
-│   └── figures        <- Generated graphics and figures to be used in reporting
-│
-├── requirements.txt   <- The requirements file for reproducing the analysis environment, e.g.
-│                         generated with `pip freeze > requirements.txt`
-│
-├── setup.cfg          <- Configuration file for flake8
-│
-└── project   <- Source code for use in this project.
-    │
-    ├── __init__.py             <- Makes project a Python module
-    │
-    ├── config.py               <- Store useful variables and configuration
-    │
-    ├── dataset.py              <- Scripts to download or generate data
-    │
-    ├── features.py             <- Code to create features for modeling
-    │
-    ├── modeling                
-    │   ├── __init__.py 
-    │   ├── predict.py          <- Code to run model inference with trained models          
-    │   └── train.py            <- Code to train models
-    │
-    └── plots.py                <- Code to create visualizations
+└── project/                    <- 再利用する Python コード
+    ├── config.py               <- パス定義（変更不要）
+    ├── dataset.py              <- データ読み込み・前処理
+    ├── features.py             <- 特徴量エンジニアリング
+    └── modeling/
+        ├── train.py            <- 学習 (CV付き)
+        └── predict.py          <- 推論・submission 生成
 ```
 
---------
+## セットアップ
 
+```bash
+make requirements
+```
+
+## 実行フロー
+
+```bash
+# 1. データ前処理
+python -m project.dataset
+
+# 2. 特徴量生成
+python -m project.features
+
+# 3. 学習 (5-fold CV)
+python -m project.modeling.train
+
+# 4. 推論・submission 生成
+python -m project.modeling.predict
+```
+
+完了すると `data/processed/submission.csv` が生成されます。
+
+## パスの使い方
+
+`project/config.py` にパスがすべて定義されています。
+ノートブックからも以下のようにインポートして使えます：
+
+```python
+from project.config import RAW_DATA_DIR, PROCESSED_DATA_DIR, MODELS_DIR
+
+import pandas as pd
+train = pd.read_csv(RAW_DATA_DIR / "train.csv")
+```
+
+## 仮データについて
+
+`data/raw/` にはタイタニック風の二値分類ダミーデータが入っています。
+
+| ファイル | 行数 | 説明 |
+|---|---|---|
+| train.csv | 800 | 学習データ（target列あり） |
+| test.csv | 200 | テストデータ（target列なし） |
+
+**カラム:** `id`, `age`, `fare`, `pclass`, `sex`, `embarked`, `target`
+
+## Makefile コマンド
+
+```bash
+make help         # コマンド一覧
+make requirements # 依存パッケージのインストール
+make data         # データ前処理の実行
+make format       # コードフォーマット (ruff)
+make lint         # リントチェック
+make clean        # キャッシュ削除
+```
