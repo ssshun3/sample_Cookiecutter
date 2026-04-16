@@ -1,8 +1,12 @@
+lightgbm
 loguru
-mkdocs
-pip
+matplotlib
+numpy
+pandas
 python-dotenv
 ruff
+scikit-learn
+seaborn
 tqdm
 typer
 -e .

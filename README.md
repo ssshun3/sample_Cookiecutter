@@ -1,16 +1,17 @@
 # project
 
-コンペ用の最小構成プロジェクトテンプレートです。
+Signate コンペ用プロジェクトテンプレートです。
 
 ## ディレクトリ構成
 
 ```
-├── Makefile                    <- よく使うコマンドのショートカット
+├── Makefile
 ├── README.md
 ├── data/
-│   ├── raw/                    <- 元データ（変更しない）
+│   ├── raw/                    <- Signate からダウンロードしたデータを置く
 │   │   ├── train.csv
-│   │   └── test.csv
+│   │   ├── test.csv
+│   │   └── sample_submit.csv
 │   ├── interim/                <- 処理途中のデータ
 │   └── processed/              <- モデルに入力する最終データ・submission
 │
@@ -20,11 +21,11 @@
 │                                  命名規則: 1.0-eda.ipynb, 2.0-feature.ipynb
 │
 └── project/                    <- 再利用する Python コード
-    ├── config.py               <- パス定義（変更不要）
+    ├── config.py               <- パス定義
     ├── dataset.py              <- データ読み込み・前処理
     ├── features.py             <- 特徴量エンジニアリング
     └── modeling/
-        ├── train.py            <- 学習 (CV付き)
+        ├── train.py            <- LightGBM 学習 (CV付き)
         └── predict.py          <- 推論・submission 生成
 ```
 
@@ -37,25 +38,35 @@ make requirements
 ## 実行フロー
 
 ```bash
-# 1. データ前処理
+# 1. data/raw/ に train.csv / test.csv を置く
+
+# 2. データ前処理
 python -m project.dataset
 
-# 2. 特徴量生成
+# 3. 特徴量生成
 python -m project.features
 
-# 3. 学習 (5-fold CV)
+# 4. 学習 (5-fold CV)
 python -m project.modeling.train
 
-# 4. 推論・submission 生成
+# 5. 推論・submission 生成
 python -m project.modeling.predict
 ```
 
 完了すると `data/processed/submission.csv` が生成されます。
 
-## パスの使い方
+## コンペ開始時にやること
 
-`project/config.py` にパスがすべて定義されています。
-ノートブックからも以下のようにインポートして使えます：
+各ファイルの `# ---- コンペに合わせて変更 ----` セクションを編集します。
+
+| ファイル | 変更箇所 |
+|---|---|
+| `dataset.py` | `TARGET_COL`, `ID_COL`, 前処理ロジック |
+| `features.py` | `TARGET_COL`, `ID_COL`, 特徴量エンジニアリング |
+| `modeling/train.py` | `LGB_PARAMS`, `TARGET_COL`, `ID_COL`, metric |
+| `modeling/predict.py` | `TARGET_COL`, `ID_COL`, 提出フォーマット |
+
+## パスの使い方
 
 ```python
 from project.config import RAW_DATA_DIR, PROCESSED_DATA_DIR, MODELS_DIR
@@ -63,17 +74,6 @@ from project.config import RAW_DATA_DIR, PROCESSED_DATA_DIR, MODELS_DIR
 import pandas as pd
 train = pd.read_csv(RAW_DATA_DIR / "train.csv")
 ```
-
-## 仮データについて
-
-`data/raw/` にはタイタニック風の二値分類ダミーデータが入っています。
-
-| ファイル | 行数 | 説明 |
-|---|---|---|
-| train.csv | 800 | 学習データ（target列あり） |
-| test.csv | 200 | テストデータ（target列なし） |
-
-**カラム:** `id`, `age`, `fare`, `pclass`, `sex`, `embarked`, `target`
 
 ## Makefile コマンド
 
