@@ -1,61 +1,196 @@
-# project
+# 木材近赤外スペクトルによる含水率予測
 
-<a target="_blank" href="https://cookiecutter-data-science.drivendata.org/">
-    <img src="https://img.shields.io/badge/CCDS-Project%20template-328F97?logo=cookiecutter" />
-</a>
+近赤外研究会 × SIGNATE コンペ
 
-A short description of the project.
+## コンペ概要
 
-## Project Organization
+| 項目 | 内容 |
+|---|---|
+| タスク | 回帰（木材の含水率を予測） |
+| 評価指標 | RMSE（小さいほど良い） |
+| 提出上限 | 最大2件を最終評価に選択 |
+| 入賞枠 | 上位6名（暫定→最終評価で順位変動あり） |
+
+### 問題設定
+
+木材の**近赤外スペクトル（10000〜4000 cm⁻¹）**から、以下の式で定義される**含水率（%）**を予測する。
 
 ```
-├── LICENSE            <- Open-source license if one is chosen
-├── Makefile           <- Makefile with convenience commands like `make data` or `make train`
-├── README.md          <- The top-level README for developers using this project.
-├── data
-│   ├── external       <- Data from third party sources.
-│   ├── interim        <- Intermediate data that has been transformed.
-│   ├── processed      <- The final, canonical data sets for modeling.
-│   └── raw            <- The original, immutable data dump.
-│
-├── docs               <- A default mkdocs project; see www.mkdocs.org for details
-│
-├── models             <- Trained and serialized models, model predictions, or model summaries
-│
-├── notebooks          <- Jupyter notebooks. Naming convention is a number (for ordering),
-│                         the creator's initials, and a short `-` delimited description, e.g.
-│                         `1.0-jqp-initial-data-exploration`.
-│
-├── pyproject.toml     <- Project configuration file with package metadata for 
-│                         project and configuration for tools like black
-│
-├── references         <- Data dictionaries, manuals, and all other explanatory materials.
-│
-├── reports            <- Generated analysis as HTML, PDF, LaTeX, etc.
-│   └── figures        <- Generated graphics and figures to be used in reporting
-│
-├── requirements.txt   <- The requirements file for reproducing the analysis environment, e.g.
-│                         generated with `pip freeze > requirements.txt`
-│
-├── setup.cfg          <- Configuration file for flake8
-│
-└── project   <- Source code for use in this project.
-    │
-    ├── __init__.py             <- Makes project a Python module
-    │
-    ├── config.py               <- Store useful variables and configuration
-    │
-    ├── dataset.py              <- Scripts to download or generate data
-    │
-    ├── features.py             <- Code to create features for modeling
-    │
-    ├── modeling                
-    │   ├── __init__.py 
-    │   ├── predict.py          <- Code to run model inference with trained models          
-    │   └── train.py            <- Code to train models
-    │
-    └── plots.py                <- Code to create visualizations
+含水率(%) = (水の質量 / 全乾状態の木材質量) × 100
 ```
 
---------
+### データ
 
+- **試料**: 19樹種（イチョウ、クスノキ、ウエンジ、ウォールナット、クリ、ケヤキ、スギ、スプルース、タモ、チーク、チェリー、トチ、ナラ、ヒノキ、ベイスギ、米ヒバ、ベイマツ、ヤマザクラ、ホワイトオーク）
+- **試料サイズ**: 20 mm × 20 mm × 12 mm
+- **全乾密度**: 0.32〜0.79 g/cm³
+- **取得方法**: 飽水状態から室温乾燥させながら繰り返し測定 → 樹種ごとにデータ数が異なる
+- **測定面**: 板目・まさ目・追いまさ面
+
+### スペクトル測定条件
+
+| 項目 | 値 |
+|---|---|
+| 装置 | フーリエ変換型近赤外分光計 |
+| 波数範囲 | 10000〜4000 cm⁻¹ |
+| 分解能 | 8 cm⁻¹ |
+| 積算回数 | 32 scan |
+| プローブ距離 | 試料表面から約 2 mm |
+| 吸光度算出 | リファレンス白色板 + 試料反射光 |
+
+### 注意点
+
+- 乾燥収縮によりプローブ-試料間距離がわずかに変化する可能性あり
+- 近赤外光が拡散するのは木材表面数 mm 程度
+- 散乱・試料状態・測定条件の影響を受けやすいスペクトル
+
+### データ形式（カラム説明）
+
+| カラム名 | 説明 |
+|---|---|
+| sample number | サンプル通し番号 |
+| species number | 樹種番号 |
+| 樹種 | 樹種名 |
+| 含水率 | 含水率データ（%）※学習用データのみに含まれます |
+| 9993.76781 〜 3999.82139 | 波数（cm⁻¹）ごとの近赤外スペクトル値（吸光度） |
+
+---
+
+## ルール
+
+### データの利用
+
+| 操作 | 可否 |
+|---|---|
+| 配布データ以外のデータを学習・予測に使用 | **禁止** |
+| オープンソースの学習済みモデル・ライブラリの使用 | 可（入賞時にソース明記が必要） |
+| 学習用データへの手動ラベル修正 | 可（手順を保存すること） |
+| 評価用データをモデルの学習に使用 | **禁止** |
+| 評価用データ複数サンプルの統計量・関係性を予測に利用 | **禁止** |
+
+### 評価用データの取り扱い（重要）
+
+本コンペでは test.csv を「将来新たに取得される**未知の1スペクトル**」として扱う。
+前処理・特徴量・モデルはすべて **train.csv のみ** を用いて構築すること。
+
+**禁止されている処理の例:**
+- 評価用データ全体の平均・分散などの統計量を使って予測・変換
+- 評価用データ同士の類似度・クラスタリング・代表スペクトル作成
+- 評価用データの乾燥過程や測定順序など複数サンプルの存在を前提とした処理
+
+**判断基準:** 「未知スペクトルが1つだけ与えられた状況でも実行可能か？」
+- Yes → 可
+- No（複数の評価用データが必要）→ **禁止**
+
+**許可されている処理の例:**
+- train.csv のみで前処理方法（SNV、MSC、PCA など）を決定し、新規スペクトルに適用
+- train.csv を基準として新規スペクトルとの類似度を特徴量として利用
+
+> ルール解釈に関する補足は Discord の質問チャンネルを確認すること。
+
+### チーム・アカウント
+
+- 1人につき1アカウントのみ
+- チーム最大 **3名**
+- チームの作成・変更: **2026/05/31 23:59** まで
+
+### 情報の取り扱い
+
+- コンペ期間中: コード・モデル・分析結果のチーム外への共有禁止（公式フォーラムへの開示は可）
+- コンペ終了後: モデル（ソースコード・学習済みモデル）は**公開不可**、分析結果・知見は公開可
+
+### 実装構成（入賞時の提出要件）
+
+コードは以下の3モジュールに分けて実装すること。
+
+| モジュール | 内容 |
+|---|---|
+| **Preprocessing** | データ読み込み・前処理。`get_train_data` / `get_test_data` 関数を定義 |
+| **Learning** | 前処理済みデータの学習・モデル出力。CV評価結果も出力 |
+| **Predicting** | 評価用データと学習済みモデルから予測結果を出力 |
+
+---
+
+## ディレクトリ構成
+
+```
+├── Makefile
+├── README.md
+├── data/
+│   ├── raw/                    <- Signate からダウンロードしたデータを置く
+│   │   ├── train.csv
+│   │   ├── test.csv
+│   │   └── sample_submit.csv
+│   ├── interim/                <- 処理途中のデータ
+│   └── processed/              <- モデルに入力する最終データ・submission
+│
+├── models/                     <- 学習済みモデル (.pkl)
+│
+├── notebooks/                  <- EDA・実験用ノートブック
+│                                  命名規則: 1.0-eda.ipynb, 2.0-feature.ipynb
+│
+└── project/                    <- 再利用する Python コード
+    ├── config.py               <- パス定義
+    ├── dataset.py              <- データ読み込み・前処理
+    ├── features.py             <- 特徴量エンジニアリング
+    └── modeling/
+        ├── train.py            <- LightGBM 学習 (CV付き)
+        └── predict.py          <- 推論・submission 生成
+```
+
+## セットアップ
+
+```bash
+make requirements
+```
+
+## 実行フロー
+
+```bash
+# 1. data/raw/ に train.csv / test.csv を置く
+
+# 2. データ前処理
+python -m project.dataset
+
+# 3. 特徴量生成
+python -m project.features
+
+# 4. 学習 (5-fold CV)
+python -m project.modeling.train
+
+# 5. 推論・submission 生成
+python -m project.modeling.predict
+```
+
+完了すると `data/processed/submission.csv` が生成されます。
+
+## このコンペで変更すべき箇所
+
+現在のコードは二値分類用のデフォルト設定になっているため、以下を変更する。
+
+| ファイル | 変更箇所 |
+|---|---|
+| `modeling/train.py` | `objective: binary` → `regression`, `metric: auc` → `rmse` |
+| `modeling/predict.py` | 確率値ではなく実数値をそのまま出力 |
+| `dataset.py` | `TARGET_COL` を含水率の列名に変更 |
+| `features.py` | `TARGET_COL` を含水率の列名に変更 |
+
+## パスの使い方
+
+```python
+from project.config import RAW_DATA_DIR, PROCESSED_DATA_DIR, MODELS_DIR
+
+import pandas as pd
+train = pd.read_csv(RAW_DATA_DIR / "train.csv")
+```
+
+## Makefile コマンド
+
+```bash
+make help         # コマンド一覧
+make requirements # 依存パッケージのインストール
+make data         # データ前処理の実行
+make format       # コードフォーマット (ruff)
+make lint         # リントチェック
+make clean        # キャッシュ削除
+```

@@ -1,28 +1,52 @@
 from pathlib import Path
 
+import pandas as pd
 from loguru import logger
-from tqdm import tqdm
 import typer
 
 from project.config import PROCESSED_DATA_DIR, RAW_DATA_DIR
 
 app = typer.Typer()
 
+# ---- コンペに合わせて変更 ----
+TARGET_COL = "target"
+ID_COL = "id"
+# ----------------------------
+
 
 @app.command()
 def main(
-    # ---- REPLACE DEFAULT PATHS AS APPROPRIATE ----
-    input_path: Path = RAW_DATA_DIR / "dataset.csv",
-    output_path: Path = PROCESSED_DATA_DIR / "dataset.csv",
-    # ----------------------------------------------
+    train_path: Path = RAW_DATA_DIR / "train.csv",
+    test_path: Path = RAW_DATA_DIR / "test.csv",
+    output_dir: Path = PROCESSED_DATA_DIR,
 ):
-    # ---- REPLACE THIS WITH YOUR OWN CODE ----
-    logger.info("Processing dataset...")
-    for i in tqdm(range(10), total=10):
-        if i == 5:
-            logger.info("Something happened for iteration 5.")
-    logger.success("Processing dataset complete.")
-    # -----------------------------------------
+    logger.info("データを読み込んでいます...")
+    train = pd.read_csv(train_path)
+    test = pd.read_csv(test_path)
+    logger.info(f"train: {train.shape}, test: {test.shape}")
+
+    # ---- 前処理をここに書く ----
+
+    # 数値列の欠損値補完
+    num_cols = train.select_dtypes(include="number").columns.drop(TARGET_COL, errors="ignore")
+    for col in num_cols:
+        median = train[col].median()
+        train[col] = train[col].fillna(median)
+        test[col] = test[col].fillna(median)
+
+    # カテゴリ列の欠損値補完
+    cat_cols = train.select_dtypes(include="object").columns
+    for col in cat_cols:
+        mode = train[col].mode()[0]
+        train[col] = train[col].fillna(mode)
+        test[col] = test[col].fillna(mode)
+
+    # ---------------------------
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    train.to_csv(output_dir / "train_cleaned.csv", index=False)
+    test.to_csv(output_dir / "test_cleaned.csv", index=False)
+    logger.success(f"保存完了: {output_dir}")
 
 
 if __name__ == "__main__":
